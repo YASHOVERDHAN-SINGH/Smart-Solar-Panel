@@ -1,0 +1,71 @@
+# ESP32-Code
+
+#define BLYNK_PRINT Serial
+#define BLYNK_TEMPLATE_ID "TMPL3mEURPjV7"
+#define BLYNK_TEMPLATE_NAME "Smart Solar Panel"
+#define BLYNK_AUTH_TOKEN    "5O34Hx0N80CUOx4bBKVMgwbzrzEZYbWP"
+
+#include <WiFi.h>
+#include <WiFiClient.h>
+#include <BlynkSimpleEsp32.h>
+#include <DHT.h>
+#include <Servo.h>
+
+char ssid[] = "NOT_FOR_YOU";
+char pass[] = "tryagain";
+
+
+#define POT_V_PIN 36        
+#define POT_I_PIN 39       
+#define POT_A_PIN 34        
+#define DHT_PIN   4         
+#define SERVO_PIN 18       
+
+#define DHTTYPE DHT22
+DHT dht(DHT_PIN, DHTTYPE);
+Servo panelServo;
+
+BlynkTimer timer;
+
+void sendAllData() {
+  float voltage = analogRead(POT_V_PIN) * (3.3 / 4095.0);
+  float current = analogRead(POT_I_PIN) * (3.3 / 4095.0);
+  int angleDeg = map(analogRead(POT_A_PIN), 0, 4095, 0, 180);
+  float temp = dht.readTemperature();
+  float hum = dht.readHumidity();
+
+  if (isnan(temp) || isnan(hum)) {
+    Serial.println("DHT22 read failed");
+    return;
+  }
+
+ 
+  Blynk.virtualWrite(V0, voltage);
+  Blynk.virtualWrite(V1, current);
+  Blynk.virtualWrite(V2, angleDeg);
+  Blynk.virtualWrite(V3, temp);
+  Blynk.virtualWrite(V4, hum);
+
+  
+  Serial.printf("V=%.2fV | I=%.2fA | Angle=%d° | T=%.1f°C | H=%.1f%%\n",
+                voltage, current, angleDeg, temp, hum);
+}
+
+void setup() {
+  Serial.begin(115200);
+  Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass);
+
+  dht.begin();
+  panelServo.attach(SERVO_PIN);
+
+  timer.setInterval(2000L, sendAllData); 
+}
+
+void loop() {
+  Blynk.run();
+  timer.run();
+
+ 
+  int servoAngle = map(analogRead(POT_A_PIN), 0, 4095, 0, 180);
+  panelServo.write(servoAngle);
+}
